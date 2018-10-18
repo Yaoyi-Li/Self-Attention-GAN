@@ -1,0 +1,1 @@
+python main.py --batch_size 64 --imsize 64 --dataset celeb --sn_type=sn --has_bn=True --use_tensorboard=True --adv_loss hinge --version sagan_celeb

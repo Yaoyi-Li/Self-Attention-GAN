@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.autograd import Variable
-from spectral import SpectralNorm
+# from spectral import SpectralNorm
 import numpy as np
 
 class Self_Attn(nn.Module):
@@ -42,7 +42,7 @@ class Self_Attn(nn.Module):
 class Generator(nn.Module):
     """Generator."""
 
-    def __init__(self, batch_size, image_size=64, z_dim=100, conv_dim=64):
+    def __init__(self, batch_size, image_size=64, z_dim=100, conv_dim=64, sn_type='sn', has_bn=True):
         super(Generator, self).__init__()
         self.imsize = image_size
         layer1 = []
@@ -50,29 +50,39 @@ class Generator(nn.Module):
         layer3 = []
         last = []
 
+        if sn_type=='sn':
+            from spectral import SpectralNorm
+        elif sn_type=='adasn':
+            from adaSN import SpectralNorm
+
+            
         repeat_num = int(np.log2(self.imsize)) - 3
         mult = 2 ** repeat_num # 8
         layer1.append(SpectralNorm(nn.ConvTranspose2d(z_dim, conv_dim * mult, 4)))
-        layer1.append(nn.BatchNorm2d(conv_dim * mult))
+        if has_bn:
+            layer1.append(nn.BatchNorm2d(conv_dim * mult))
         layer1.append(nn.ReLU())
 
         curr_dim = conv_dim * mult
 
         layer2.append(SpectralNorm(nn.ConvTranspose2d(curr_dim, int(curr_dim / 2), 4, 2, 1)))
-        layer2.append(nn.BatchNorm2d(int(curr_dim / 2)))
+        if has_bn:
+            layer2.append(nn.BatchNorm2d(int(curr_dim / 2)))
         layer2.append(nn.ReLU())
 
         curr_dim = int(curr_dim / 2)
 
         layer3.append(SpectralNorm(nn.ConvTranspose2d(curr_dim, int(curr_dim / 2), 4, 2, 1)))
-        layer3.append(nn.BatchNorm2d(int(curr_dim / 2)))
+        if has_bn:
+            layer3.append(nn.BatchNorm2d(int(curr_dim / 2)))
         layer3.append(nn.ReLU())
 
         if self.imsize == 64:
             layer4 = []
             curr_dim = int(curr_dim / 2)
             layer4.append(SpectralNorm(nn.ConvTranspose2d(curr_dim, int(curr_dim / 2), 4, 2, 1)))
-            layer4.append(nn.BatchNorm2d(int(curr_dim / 2)))
+            if has_bn:
+                layer4.append(nn.BatchNorm2d(int(curr_dim / 2)))
             layer4.append(nn.ReLU())
             self.l4 = nn.Sequential(*layer4)
             curr_dim = int(curr_dim / 2)
@@ -104,13 +114,18 @@ class Generator(nn.Module):
 class Discriminator(nn.Module):
     """Discriminator, Auxiliary Classifier."""
 
-    def __init__(self, batch_size=64, image_size=64, conv_dim=64):
+    def __init__(self, batch_size=64, image_size=64, conv_dim=64, sn_type='sn'):
         super(Discriminator, self).__init__()
         self.imsize = image_size
         layer1 = []
         layer2 = []
         layer3 = []
         last = []
+
+        if sn_type=='sn':
+            from spectral import SpectralNorm
+        elif sn_type=='adasn':
+            from adaSN import SpectralNorm
 
         layer1.append(SpectralNorm(nn.Conv2d(3, conv_dim, 4, 2, 1)))
         layer1.append(nn.LeakyReLU(0.1))

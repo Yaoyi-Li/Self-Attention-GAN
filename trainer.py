@@ -20,6 +20,12 @@ class Trainer(object):
         # exact model and loss
         self.model = config.model
         self.adv_loss = config.adv_loss
+        self.sn_type = config.sn_type
+        self.has_bn = config.has_bn
+        if self.has_bn:
+            self.bn_prefix = 'bn'
+        else:
+            self.bn_prefix = 'nobn'
 
         # Model hyper-parameters
         self.imsize = config.imsize
@@ -53,9 +59,9 @@ class Trainer(object):
         self.version = config.version
 
         # Path
-        self.log_path = os.path.join(config.log_path, self.version)
-        self.sample_path = os.path.join(config.sample_path, self.version)
-        self.model_save_path = os.path.join(config.model_save_path, self.version)
+        self.log_path = os.path.join(config.log_path, self.version+'_'+self.sn_type+'_'+self.bn_prefix)
+        self.sample_path = os.path.join(config.sample_path, self.version+'_'+self.sn_type+'_'+self.bn_prefix)
+        self.model_save_path = os.path.join(config.model_save_path, self.version+'_'+self.sn_type+'_'+self.bn_prefix)
 
         self.build_model()
 
@@ -166,6 +172,12 @@ class Trainer(object):
             self.g_optimizer.step()
 
 
+            if self.use_tensorboard:
+                self.logger.scalar_summary('d_loss_real', d_loss_real, step+1)
+                self.logger.scalar_summary('d_loss_fake', d_loss_fake, step+1)
+                self.logger.scalar_summary('d_loss', d_loss, step+1)
+                self.logger.scalar_summary('g_loss_fake', g_loss_fake, step+1)
+
             # Print out log info
             if (step + 1) % self.log_step == 0:
                 elapsed = time.time() - start_time
@@ -177,7 +189,7 @@ class Trainer(object):
                              self.G.attn1.gamma.mean().data[0], self.G.attn2.gamma.mean().data[0] ))
 
             # Sample images
-            if (step + 1) % self.sample_step == 0:
+            if (step + 1) % self.sample_step == 0 or step == 0:
                 fake_images,_,_= self.G(fixed_z)
                 save_image(denorm(fake_images.data),
                            os.path.join(self.sample_path, '{}_fake.png'.format(step + 1)))
@@ -190,8 +202,8 @@ class Trainer(object):
 
     def build_model(self):
 
-        self.G = Generator(self.batch_size,self.imsize, self.z_dim, self.g_conv_dim).cuda()
-        self.D = Discriminator(self.batch_size,self.imsize, self.d_conv_dim).cuda()
+        self.G = Generator(self.batch_size,self.imsize, self.z_dim, self.g_conv_dim, sn_type=self.sn_type, has_bn=self.has_bn).cuda()
+        self.D = Discriminator(self.batch_size,self.imsize, self.d_conv_dim, sn_type=self.sn_type).cuda()
         if self.parallel:
             self.G = nn.DataParallel(self.G)
             self.D = nn.DataParallel(self.D)

@@ -16,10 +16,14 @@ def main(config):
                              config.batch_size, shuf=config.train)
 
     # Create directories if not exist
-    make_folder(config.model_save_path, config.version)
-    make_folder(config.sample_path, config.version)
-    make_folder(config.log_path, config.version)
-    make_folder(config.attn_path, config.version)
+    if config.has_bn:
+        bn_prefix = 'bn'
+    else:
+        bn_prefix = 'nobn'
+    make_folder(config.model_save_path, config.version+'_'+config.sn_type+'_'+bn_prefix)
+    make_folder(config.sample_path, config.version+'_'+config.sn_type+'_'+bn_prefix)
+    make_folder(config.log_path, config.version+'_'+config.sn_type+'_'+bn_prefix)
+    make_folder(config.attn_path, config.version+'_'+config.sn_type+'_'+bn_prefix)
 
 
     if config.train:
